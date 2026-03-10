@@ -51,12 +51,14 @@
 
 /* Scanner Wrapper */
 .scanner-section {
-    display: flex;
+    display: flex; 
     flex-direction: column;
 }
 
 .qr-scanner-wrapper {
-    background: rgba(0, 0, 0, 0.5);
+    position: relative;
+    height: 50vh;
+    background: rgba(221, 221, 221, 0.5);
     border-radius: 16px;
     overflow: hidden;
     border: 1px solid var(--border-color);
@@ -64,24 +66,52 @@
 }
 
 #qr-reader {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     border: none !important;
+    background: #1a1a1a;
+    height: 100%;
 }
 
-#qr-reader img[alt="Info icon"] {
+#qr-reader img[alt="Info icon"]{
     display: none !important;
 }
 
+#qr-reader__dashboard {
+    width: 100% !important;
+    padding: 20px 0 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#qr-reader img[alt="Camera based scan"] {
+    width: 90px !important;
+    height: 90px !important;
+    margin-bottom: 10px;
+    filter: invert(50%) brightness(100%);
+}
+
 #qr-reader__dashboard_section_csr span {
-    color: var(--text-main) !important;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 15px;
+    display: block;
 }
 
 #qr-reader button {
     background: var(--primary);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
+    padding: 0.6rem 1.2rem;
     border-radius: 8px;
     cursor: pointer;
-    font-family: inherit;
-    margin-top: 5px;
+    font-weight: 600;
+    transition: filter 0.2s ease;
+    margin-bottom:10px ;
+}
+
+#qr-reader button:hover {
+    filter: brightness(1.1);
 }
