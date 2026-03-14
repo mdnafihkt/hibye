@@ -50,68 +50,152 @@
 }
 
 /* Scanner Wrapper */
-.scanner-section {
-    display: flex; 
-    flex-direction: column;
-}
-
+/* Container and Wrapper */
 .qr-scanner-wrapper {
     position: relative;
-    height: 50vh;
-    background: rgba(221, 221, 221, 0.5);
-    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    background: rgba(221, 221, 221, 0.08); /* Subtle glass effect */
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 1.5rem;
     overflow: hidden;
-    border: 1px solid var(--border-color);
-    margin-bottom: 1rem;
-}
-
-#qr-reader {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border: none !important;
-    background: #1a1a1a;
-    height: 100%;
-}
-
-#qr-reader img[alt="Info icon"]{
-    display: none !important;
-}
-
-#qr-reader__dashboard {
-    width: 100% !important;
-    padding: 20px 0 !important;
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 1.5rem;
 }
 
-#qr-reader img[alt="Camera based scan"] {
-    width: 90px !important;
-    height: 90px !important;
-    margin-bottom: 10px;
-    filter: invert(50%) brightness(100%);
+#qr-reader {
+    width: 100% !important;
+    aspect-ratio: 1 / 1;
+    background: #0b0b0b;
+    border-radius: 24px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none !important;
 }
 
-#qr-reader__dashboard_section_csr span {
-    font-size: 0.9rem;
-    font-weight: 500;
-    margin-bottom: 15px;
-    display: block;
+/* The QR Icon Placeholder */
+#qr-reader:empty::before {
+    content: '';
+    width: 64px;
+    height: 64px;
+    opacity: 0.2;
+    border-radius: 24px;
+    background-color: white;
+    /* This is a simple QR-like mask */
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'><rect x='3' y='3' width='5' height='5' rx='1'/><rect x='16' y='3' width='5' height='5' rx='1'/><rect x='3' y='16' width='5' height='5' rx='1'/><path d='M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v3a2 2 0 0 1-2 2H7'/></svg>") no-repeat center;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'><rect x='3' y='3' width='5' height='5' rx='1'/><rect x='16' y='3' width='5' height='5' rx='1'/><rect x='3' y='16' width='5' height='5' rx='1'/><path d='M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v3a2 2 0 0 1-2 2H7'/></svg>") no-repeat center;
 }
 
-#qr-reader button {
-    background: var(--primary);
+/* The "Ready to Scan" Text */
+#qr-reader:empty::after {
+    content: 'READY TO SCAN';
+    position: absolute;
+    bottom: 25%;
+    color: white;
+    opacity: 0.2;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+/* Scanning Animation (Only active when .is-scanning class is present) */
+.is-scanning #qr-reader::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(155, 155, 155, 0.232);
+    box-shadow: 0 0 15px var(--primary);
+    opacity: 1; 
+    animation: scan-loop 2.5s infinite ease-in-out;
+    z-index: 10;
+}
+
+@keyframes scan-loop {
+    0% { top: 5%; }
+    50% { top: 95%; }
+    100% { top: 5%; }
+}
+
+
+/* Target the video element injected by the library */
+#qr-reader video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover; /* Prevents stretching */
+    border-radius: 16px;
+}
+
+/* Scanner Overlay (The Viewfinder) */
+#qr-reader__scan_region {
+    border: none !important;
+}
+
+#qr-shaded-region{
+    border-radius: 16px;
+}
+
+/* Hide any auto-generated text or info icons from the library */
+#qr-reader__dashboard, 
+#qr-reader span {
+    display: none !important;
+}
+
+#qr-reader img[alt="Info icon"]{
+    color: white;
+    height: 20px;
+    width: 20px;
+}
+
+/* Custom Controls */
+.scanner-controls {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.scanner-btn {
+    appearance: none;
+    background: var(--primary, #007AFF);
     color: white;
     border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    cursor: pointer;
+    padding: 0.8rem 2rem;
+    border-radius: 999px;
     font-weight: 600;
-    transition: filter 0.2s ease;
-    margin-bottom:10px ;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    min-width: 180px;
 }
 
-#qr-reader button:hover {
+.scanner-btn:hover {
+    transform: translateY(-2px);
     filter: brightness(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.scanner-btn.stop {
+    background: #ff3b30; /* Red for stop */
+}
+
+/* Glass Panel Adjustment for Mobile */
+@media (max-width: 468px) {
+    .join-chat-container.glass-panel {
+        display: flex;
+        flex-direction: column;
+        border-radius: 0;
+        height: 100vh;
+        justify-content: center;
+        padding: 20px;
+    }
 }
