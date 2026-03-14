@@ -129,3 +129,6 @@ dist
 # Build directories
 client/dist/
 server/dist/
+
+# custom files
+todo.md
