@@ -5,7 +5,6 @@
         flex-direction: column;
         border-radius: 0;
         height: 100vh;
-        justify-content: center;
     }
 }
 
@@ -25,8 +24,6 @@
     font-size: 0.85rem;
     color: var(--text-muted);
 }
-
-
 
 .divider {
     display: flex;
@@ -49,7 +46,12 @@
     padding: 0 1rem;
 }
 
-/* Scanner Wrapper */
+/* Scanner Section */
+.scanner-section{
+    display: flex;
+    flex-direction: column;
+}
+
 /* Container and Wrapper */
 .qr-scanner-wrapper {
     position: relative;
