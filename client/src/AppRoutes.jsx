@@ -1,0 +1,285 @@
+import React, { useState, useEffect } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
+import io from "socket.io-client";
+import { deriveKey, decryptMessage } from "./utils/crypto";
+import HomeSelection from "./components/HomeSelection/HomeSelection";
+import StartChat from "./components/StartChat/StartChat";
+import JoinChat from "./components/JoinChat/JoinChat";
+import ChatPage from "./components/ChatPage/ChatPage";
+import SessionRecovery from "./components/SessionRecovery/SessionRecovery";
+
+export default function AppRoutes({ SOCKET_URL }) {
+  const navigate = useNavigate();
+  const [socket, setSocket] = useState(null);
+  const [roomId, setRoomId] = useState("");
+  const [password, setPassword] = useState("");
+  const [cryptoKey, setCryptoKey] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [sessionRecoveryNeeded, setSessionRecoveryNeeded] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Check for session recovery on mount
+  useEffect(() => {
+    const initializeSession = async () => {
+      const storedRoomId = localStorage.getItem("room_id");
+      const storedCryptoKey = sessionStorage.getItem("chat_key");
+
+      if (storedRoomId && storedCryptoKey) {
+        // Both room and key exist - auto reconnect
+        setRoomId(storedRoomId);
+        await attemptAutoReconnect(storedRoomId, storedCryptoKey);
+        navigate("/chat");
+      } else if (storedRoomId && !storedCryptoKey) {
+        // Room exists but key missing - prompt for password
+        setSessionRecoveryNeeded(true);
+        setRoomId(storedRoomId);
+        navigate("/recovery");
+      }
+      
+      setIsInitialized(true);
+    };
+
+    initializeSession();
+  }, [navigate]);
+
+  const attemptAutoReconnect = async (reconnectRoomId, reconnectKeyStr) => {
+    try {
+      // Parse the crypto key from sessionStorage (it was stored as JSON)
+      const key = JSON.parse(reconnectKeyStr);
+      setCryptoKey(key);
+
+      const newSocket = io(SOCKET_URL);
+      setSocket(newSocket);
+
+      return new Promise((resolve, reject) => {
+        newSocket.on("connect", () => {
+          setIsConnected(true);
+          newSocket.emit("join_room", reconnectRoomId);
+          console.log("Auto-reconnected to room:", reconnectRoomId);
+          resolve();
+        });
+
+        newSocket.on("connect_error", (err) => {
+          reject(err);
+        });
+
+        newSocket.on("disconnect", () => {
+          setIsConnected(false);
+        });
+
+        newSocket.on("user_joined", (id) => {
+          console.log("Another user joined");
+        });
+
+        newSocket.on("receive_message", async (data) => {
+          if (!key) return;
+          
+          console.log("Received encrypted message from server");
+          const decryptedText = await decryptMessage(key, {
+            ciphertext: data.ciphertext,
+            iv: data.iv,
+          });
+
+          if (decryptedText === null) {
+            console.error("Failed to decrypt message");
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                text: "[Encrypted message - Failed to decrypt]",
+                isOwn: false,
+                time: new Date().toLocaleTimeString(),
+              },
+            ]);
+          } else {
+            let msgData;
+            try {
+              msgData = JSON.parse(decryptedText);
+              console.log("Decrypted message type:", msgData.type);
+              if (msgData.type === "file") {
+                console.log("Received file:", msgData.fileName, msgData.fileType);
+              }
+            } catch (err) {
+              msgData = { type: "text", text: decryptedText };
+            }
+
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                ...msgData,
+                isOwn: false,
+                time: new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                }),
+              },
+            ]);
+          }
+        });
+      });
+    } catch (err) {
+      console.error("Auto-reconnect failed:", err);
+    }
+  };
+
+  const handleJoinWithCredentials = async (joinRoomId, joinPassword) => {
+    // Prevent multiple parallel sockets if re-joining
+    if (socket) {
+      socket.disconnect();
+    }
+
+    try {
+      // Derive PBKDF2 key from password and roomId (as salt)
+      const key = await deriveKey(joinPassword, joinRoomId);
+      setCryptoKey(key);
+
+      // Persist room_id in localStorage
+      localStorage.setItem("room_id", joinRoomId);
+      
+      // Persist crypto key in sessionStorage (as JSON)
+      sessionStorage.setItem("chat_key", JSON.stringify(key));
+
+      const newSocket = io(SOCKET_URL);
+      setSocket(newSocket);
+      setRoomId(joinRoomId);
+      setPassword(joinPassword);
+      setSessionRecoveryNeeded(false);
+
+      // Return a promise to wait connection to succeed fully before navigating
+      return new Promise((resolve, reject) => {
+        newSocket.on("connect", () => {
+          setIsConnected(true);
+          newSocket.emit("join_room", joinRoomId);
+          resolve();
+        });
+
+        newSocket.on("connect_error", (err) => {
+          reject(err);
+        });
+
+        newSocket.on("disconnect", () => {
+          setIsConnected(false);
+        });
+
+        newSocket.on("user_joined", (id) => {
+          console.log("Another user joined");
+        });
+
+        newSocket.on("receive_message", async (data) => {
+          // Attempt to decrypt incoming message using the local key
+          if (!key) return;
+          
+          console.log("Received encrypted message from server");
+          const decryptedText = await decryptMessage(key, {
+            ciphertext: data.ciphertext,
+            iv: data.iv,
+          });
+
+          if (decryptedText === null) {
+            // Could not decrypt -> potentially wrong password or bad data
+            console.error("Failed to decrypt message");
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                text: "[Encrypted message - Failed to decrypt]",
+                isOwn: false,
+                time: new Date().toLocaleTimeString(),
+              },
+            ]);
+          } else {
+            let msgData;
+            try {
+              msgData = JSON.parse(decryptedText);
+              console.log("Decrypted message type:", msgData.type);
+              if (msgData.type === "file") {
+                console.log("Received file:", msgData.fileName, msgData.fileType);
+              }
+            } catch (err) {
+              // Fallback for older plaintext messages
+              msgData = { type: "text", text: decryptedText };
+            }
+
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                ...msgData,
+                isOwn: false,
+                time: new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                }),
+              },
+            ]);
+          }
+        });
+      });
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const handleLeave = () => {
+    if (socket) {
+      socket.disconnect();
+    }
+    setSocket(null);
+    setCryptoKey(null);
+    setMessages([]);
+    setRoomId("");
+    setPassword("");
+    // Clear session recovery state
+    localStorage.removeItem("room_id");
+    sessionStorage.removeItem("chat_key");
+    setSessionRecoveryNeeded(false);
+  };
+
+  if (!isInitialized) {
+    return null;
+  }
+
+  return (
+    <div className="app-container">
+      <Routes>
+        <Route path="/" element={<HomeSelection />} />
+        <Route
+          path="/start"
+          element={<StartChat onJoin={handleJoinWithCredentials} />}
+        />
+        <Route
+          path="/join"
+          element={<JoinChat onJoin={handleJoinWithCredentials} />}
+        />
+        <Route
+          path="/recovery"
+          element={
+            <SessionRecovery
+              roomId={roomId}
+              onRecoveryComplete={handleJoinWithCredentials}
+            />
+          }
+        />
+        <Route
+          path="/chat"
+          element={
+            <ChatPage
+              socket={socket}
+              cryptoKey={cryptoKey}
+              roomId={roomId}
+              messages={messages}
+              setMessages={setMessages}
+              isConnected={isConnected}
+              handleLeave={handleLeave}
+            />
+          }
+        />
+      </Routes>
+    </div>
+  );
+}

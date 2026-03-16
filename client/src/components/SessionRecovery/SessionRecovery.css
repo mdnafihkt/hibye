@@ -1,0 +1,104 @@
+/* SessionRecovery Specific CSS */
+
+.recovery-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.recovery-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.recovery-message {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.room-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.room-info label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.room-id-display {
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--accent);
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  word-break: break-all;
+  text-align: center;
+}
+
+.recovery-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.recovery-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recovery-buttons .btn-primary {
+  width: 100%;
+}
+
+.recovery-buttons .btn-secondary {
+  width: 100%;
+}
+
+.recovery-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  padding-top: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 468px) {
+  .recovery-container {
+    border-radius: 0;
+    height: 100vh;
+    justify-content: center;
+  }
+  
+  .recovery-content {
+    gap: 1rem;
+  }
+}
