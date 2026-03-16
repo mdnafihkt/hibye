@@ -25,7 +25,7 @@ export async function deriveKey(password, saltString) {
         },
         keyMaterial,
         { name: 'AES-GCM', length: 256 },
-        false,
+        true, // must be extractable to allow exporting to JWK for session recovery
         ['encrypt', 'decrypt']
     );
 }
@@ -94,4 +94,26 @@ export async function decryptMessage(key, encryptedData) {
         console.error('Decryption failed. Incorrect password or tampered message.');
         return null; // Return null on decryption failure
     }
+}
+
+// Export a CryptoKey as JWK for serialization (storage)
+export async function exportKeyToJWK(key) {
+    try {
+        const jwk = await crypto.subtle.exportKey("jwk", key);
+        return JSON.stringify(jwk);
+    } catch (err) {
+        throw new Error("Unable to export crypto key (not extractable). Ensure derived key is created with extractable=true.");
+    }
+}
+
+// Import a CryptoKey from a previously exported JWK
+export async function importKeyFromJWK(jwkString) {
+    const jwk = JSON.parse(jwkString);
+    return crypto.subtle.importKey(
+        "jwk",
+        jwk,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt", "decrypt"]
+    );
 }

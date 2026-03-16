@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
-import { deriveKey, decryptMessage } from "./utils/crypto";
+import { deriveKey, decryptMessage, exportKeyToJWK, importKeyFromJWK } from "./utils/crypto";
 import HomeSelection from "./components/HomeSelection/HomeSelection";
 import StartChat from "./components/StartChat/StartChat";
 import JoinChat from "./components/JoinChat/JoinChat";
@@ -45,8 +45,13 @@ export default function AppRoutes({ SOCKET_URL }) {
 
   const attemptAutoReconnect = async (reconnectRoomId, reconnectKeyStr) => {
     try {
-      // Parse the crypto key from sessionStorage (it was stored as JSON)
-      const key = JSON.parse(reconnectKeyStr);
+      // Clean up any existing socket before creating a new one
+      if (socket) {
+        socket.disconnect();
+      }
+
+      // Import the stored key from JWK JSON
+      const key = await importKeyFromJWK(reconnectKeyStr);
       setCryptoKey(key);
 
       const newSocket = io(SOCKET_URL);
@@ -73,9 +78,13 @@ export default function AppRoutes({ SOCKET_URL }) {
         });
 
         newSocket.on("receive_message", async (data) => {
+          // Ignore messages sent by this client (we already added them locally)
+          if (data.senderId === newSocket.id) {
+            return;
+          }
+          
           if (!key) return;
           
-          console.log("Received encrypted message from server");
           const decryptedText = await decryptMessage(key, {
             ciphertext: data.ciphertext,
             iv: data.iv,
@@ -122,6 +131,11 @@ export default function AppRoutes({ SOCKET_URL }) {
       });
     } catch (err) {
       console.error("Auto-reconnect failed:", err);
+
+      // If the stored key is invalid/corrupt (not a CryptoKey), clear it and prompt recovery.
+      sessionStorage.removeItem("chat_key");
+      setSessionRecoveryNeeded(true);
+      navigate("/recovery");
     }
   };
 
@@ -139,8 +153,14 @@ export default function AppRoutes({ SOCKET_URL }) {
       // Persist room_id in localStorage
       localStorage.setItem("room_id", joinRoomId);
       
-      // Persist crypto key in sessionStorage (as JSON)
-      sessionStorage.setItem("chat_key", JSON.stringify(key));
+      // Persist crypto key in sessionStorage (as JWK JSON)
+      try {
+        const jwk = await exportKeyToJWK(key);
+        sessionStorage.setItem("chat_key", jwk);
+      } catch (err) {
+        // If exporting fails, keep key in memory and continue (session recovery won't work)
+        console.warn("Unable to persist crypto key for session recovery:", err);
+      }
 
       const newSocket = io(SOCKET_URL);
       setSocket(newSocket);
@@ -169,10 +189,14 @@ export default function AppRoutes({ SOCKET_URL }) {
         });
 
         newSocket.on("receive_message", async (data) => {
+          // Ignore messages sent by this client (we already added them locally)
+          if (data.senderId === newSocket.id) {
+            return;
+          }
+          
           // Attempt to decrypt incoming message using the local key
           if (!key) return;
           
-          console.log("Received encrypted message from server");
           const decryptedText = await decryptMessage(key, {
             ciphertext: data.ciphertext,
             iv: data.iv,
