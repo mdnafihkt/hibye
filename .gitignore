@@ -132,3 +132,24 @@ server/dist/
 
 # custom files
 todo.md
+
+# node
+node_modules/
+dist/
+
+# env
+.env
+
+# logs
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/build/
+
+# Capacitor cache
+.android/
